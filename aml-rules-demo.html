@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AML 反洗钱规则管理</title>
+    <!-- Ant Design 5 样式 -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/antd@5.21.0/dist/reset.css"
+      onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/antd@5.21.0/dist/reset.css';"
+    />
+    <style>
+      body {
+        margin: 0;
+        background: #f0f2f5;
+        font-family: "Microsoft YaHei", "Inter", sans-serif;
+      }
+
+      .appLayout {
+        min-height: 100vh;
+      }
+
+      .header {
+        background: #001529;
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+      }
+
+      .logo {
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .sider {
+        background: #001529;
+      }
+
+      .main {
+        background: #f5f5f5;
+      }
+
+      .content {
+        margin: 16px;
+        padding: 24px;
+        background: #ffffff;
+        border-radius: 8px;
+        min-height: calc(100vh - 120px);
+      }
+
+      .footer {
+        text-align: center;
+        padding: 16px 24px;
+        background: #f0f2f5;
+        font-size: 12px;
+        color: #888888;
+      }
+
+      .bootError {
+        margin: 16px;
+        padding: 16px;
+        border: 1px solid #ffd666;
+        background: #fffbe6;
+        color: #614700;
+        border-radius: 8px;
+        line-height: 1.6;
+        font-size: 14px;
+        white-space: pre-wrap;
+      }
+    </style>
+    <!-- React 18 + ReactDOM -->
+    <script
+      src="https://unpkg.com/react@18/umd/react.development.js"
+      onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js';"
+    ></script>
+    <script
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+      onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js';"
+    ></script>
+    <!-- Babel 支持 JSX -->
+    <script
+      src="https://unpkg.com/@babel/standalone/babel.min.js"
+      onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js';"
+    ></script>
+    <!-- Ant Design 5 UMD -->
+    <script
+      src="https://unpkg.com/antd@5.21.0/dist/antd.min.js"
+      onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/antd@5.21.0/dist/antd.min.js';"
+    ></script>
+    <!-- Ant Design 图标 -->
+    <script
+      src="https://unpkg.com/@ant-design/icons@5.3.0/dist/index.umd.js"
+      onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/@ant-design/icons@5.3.0/dist/index.umd.js';"
+    ></script>
+    <!-- dayjs -->
+    <script
+      src="https://unpkg.com/dayjs@1.11.13/dayjs.min.js"
+      onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/dayjs@1.11.13/dayjs.min.js';"
+    ></script>
+  </head>
+  <body>
+    <div id="bootError" class="bootError">
+正在加载页面资源中……
+
+如果你一直只看到这段文字，说明外部 CDN 资源加载失败（常见原因：无外网 / 被公司安全策略拦截）。
+解决办法：
+1) 确保能访问 `unpkg.com` 或 `cdn.jsdelivr.net`
+2) 或者告诉我，我给你生成“本地 npm 工程版”（不依赖 CDN），`npm install` 后 `npm run dev` 即可看到效果。
+    </div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const bootEl = document.getElementById("bootError");
+      const showBootError = (err) => {
+        if (!bootEl) return;
+        const msg =
+          err && err.stack
+            ? String(err.stack)
+            : err
+              ? String(err)
+              : "未知错误";
+        bootEl.textContent =
+          "页面运行失败，导致白屏。错误信息：\n\n" +
+          msg +
+          "\n\n请打开浏览器控制台（F12）查看 Network/Console，通常是 CDN 资源被拦截或加载超时。";
+        bootEl.style.display = "block";
+      };
+
+      window.addEventListener("error", (e) => {
+        if (e?.message) showBootError(e.message);
+      });
+      window.addEventListener("unhandledrejection", (e) => {
+        if (e?.reason) showBootError(e.reason);
+      });
+
+      try {
+        if (!window.React || !window.ReactDOM) {
+          throw new Error("React/ReactDOM 未加载：请检查 CDN 是否可访问。");
+        }
+        if (!window.antd) {
+          throw new Error("Ant Design 未加载：请检查 CDN 是否可访问。");
+        }
+        if (bootEl) bootEl.style.display = "none";
+      } catch (e) {
+        showBootError(e);
+        throw e;
+      }
+
+      const {
+        ConfigProvider,
+        Layout,
+        Menu,
+        Form,
+        Input,
+        Button,
+        Space,
+        Tooltip,
+        Modal,
+        message,
+        Table,
+        Tag,
+        Empty
+      } = antd;
+      const iconsRoot = window.icons || window.AntdIcons || {};
+      const {
+        ProfileOutlined,
+        UnorderedListOutlined,
+        ReloadOutlined,
+        SearchOutlined
+      } = iconsRoot;
+      const { Header, Content, Footer, Sider } = Layout;
+      const { TextArea } = Input;
+      const { createContext, useContext, useState, useEffect, useMemo } = React;
+
+      // ------------ 规则上下文（Mock + 状态管理） ------------
+      const RULE_STATUS = {
+        ENABLE: "ENABLE",
+        DISABLE: "DISABLE"
+      };
+
+      const initialRules = [
+        {
+          ruleId: 1,
+          ruleCode: "AML_RULE_20260302_001",
+          ruleName: "高风险客户大额交易规则",
+          ruleDesc: "监控高风险客户单日累计交易金额≥50万元的行为",
+          status: RULE_STATUS.ENABLE
+        },
+        {
+          ruleId: 2,
+          ruleCode: "AML_RULE_20260302_002",
+          ruleName: "跨境转账可疑规则",
+          ruleDesc: "监控跨境转账对手方为高风险国家的交易",
+          status: RULE_STATUS.DISABLE
+        },
+        {
+          ruleId: 3,
+          ruleCode: "AML_RULE_20260302_003",
+          ruleName: "账户频繁小额转出规则",
+          ruleDesc: "监控单日小额转出笔数≥30笔的行为",
+          status: RULE_STATUS.ENABLE
+        },
+        {
+          ruleId: 4,
+          ruleCode: "AML_RULE_20260302_004",
+          ruleName: "夜间集中交易规则",
+          ruleDesc: "监控 23:00-06:00 时间段内集中大额交易行为",
+          status: RULE_STATUS.DISABLE
+        },
+        {
+          ruleId: 5,
+          ruleCode: "AML_RULE_20260302_005",
+          ruleName: "同一对手方高频交易规则",
+          ruleDesc: "监控单日对同一对手方交易笔数≥20笔的行为",
+          status: RULE_STATUS.ENABLE
+        }
+      ];
+
+      const initialDrafts = [
+        {
+          ruleId: 1,
+          ruleCode: "AML_RULE_20260302_001",
+          ruleName: "高风险客户大额交易规则",
+          ruleDesc: "监控高风险客户单日累计交易金额≥50万元的行为"
+        },
+        {
+          ruleId: 2,
+          ruleCode: "AML_RULE_20260302_002",
+          ruleName: "跨境转账可疑规则",
+          ruleDesc: "监控跨境转账对手方为高风险国家的交易"
+        },
+        {
+          ruleId: 3,
+          ruleCode: "AML_RULE_20260302_003",
+          ruleName: "账户频繁小额转出规则",
+          ruleDesc: "监控单日小额转出笔数≥30笔的行为"
+        }
+      ];
+
+      const RuleContext = createContext(null);
+
+      function RuleProvider({ children }) {
+        const [rules, setRules] = useState(initialRules);
+        const [draftRules, setDraftRules] = useState(initialDrafts);
+        const [editingRule, setEditingRule] = useState(null); // { source, data }
+
+        const resetToMock = () => {
+          setRules(initialRules);
+          setDraftRules(initialDrafts);
+          setEditingRule(null);
+        };
+
+        const generateRuleCode = () => {
+          const todayStr = dayjs().format("YYYYMMDD");
+          const prefix = `AML_RULE_${todayStr}_`;
+          const allCodes = [...rules, ...draftRules]
+            .filter((r) => r.ruleCode && r.ruleCode.startsWith(prefix))
+            .map((r) => r.ruleCode);
+          let maxSeq = 0;
+          allCodes.forEach((code) => {
+            const parts = code.split("_");
+            const seqStr = parts[parts.length - 1];
+            const num = parseInt(seqStr, 10);
+            if (!Number.isNaN(num) && num > maxSeq) {
+              maxSeq = num;
+            }
+          });
+          const nextSeq = String(maxSeq + 1).padStart(3, "0");
+          return `${prefix}${nextSeq}`;
+        };
+
+        const addDraft = (values) => {
+          const nextId =
+            (draftRules.length
+              ? Math.max(...draftRules.map((r) => r.ruleId))
+              : 0) + 1;
+          const newDraft = {
+            ruleId: nextId,
+            ruleCode: values.ruleCode,
+            ruleName: values.ruleName,
+            ruleDesc: values.ruleDesc || ""
+          };
+          setDraftRules((prev) => [...prev, newDraft]);
+          return newDraft;
+        };
+
+        const updateDraft = (ruleId, values) => {
+          setDraftRules((prev) =>
+            prev.map((r) => (r.ruleId === ruleId ? { ...r, ...values } : r))
+          );
+        };
+
+        const deleteDraft = (ruleId) => {
+          setDraftRules((prev) => prev.filter((r) => r.ruleId !== ruleId));
+        };
+
+        const addConfiguredRule = (values) => {
+          const nextId =
+            (rules.length ? Math.max(...rules.map((r) => r.ruleId)) : 0) + 1;
+          const newRule = {
+            ruleId: nextId,
+            ruleCode: values.ruleCode,
+            ruleName: values.ruleName,
+            ruleDesc: values.ruleDesc || "",
+            status: RULE_STATUS.DISABLE
+          };
+          setRules((prev) => [...prev, newRule]);
+          return newRule;
+        };
+
+        const updateConfiguredRule = (ruleId, values) => {
+          setRules((prev) =>
+            prev.map((r) =>
+              r.ruleId === ruleId
+                ? {
+                    ...r,
+                    ruleName: values.ruleName,
+                    ruleDesc: values.ruleDesc || r.ruleDesc
+                  }
+                : r
+            )
+          );
+        };
+
+        const deleteConfiguredRule = (ruleId) => {
+          setRules((prev) => prev.filter((r) => r.ruleId !== ruleId));
+        };
+
+        const toggleRuleStatus = (ruleId) => {
+          setRules((prev) =>
+            prev.map((r) =>
+              r.ruleId === ruleId
+                ? {
+                    ...r,
+                    status:
+                      r.status === RULE_STATUS.ENABLE
+                        ? RULE_STATUS.DISABLE
+                        : RULE_STATUS.ENABLE
+                  }
+                : r
+            )
+          );
+        };
+
+        const value = useMemo(
+          () => ({
+            rules,
+            draftRules,
+            editingRule,
+            setEditingRule,
+            generateRuleCode,
+            addDraft,
+            updateDraft,
+            deleteDraft,
+            addConfiguredRule,
+            updateConfiguredRule,
+            deleteConfiguredRule,
+            toggleRuleStatus,
+            resetToMock
+          }),
+          [rules, draftRules, editingRule]
+        );
+
+        return (
+          <RuleContext.Provider value={value}>{children}</RuleContext.Provider>
+        );
+      }
+
+      function useRuleContext() {
+        const ctx = useContext(RuleContext);
+        if (!ctx) {
+          throw new Error("useRuleContext 必须在 RuleProvider 中使用");
+        }
+        return ctx;
+      }
+
+      // ------------ 布局 ------------
+      function MainLayout({ selectedMenuKey, onMenuChange, children }) {
+        return (
+          <Layout className="appLayout">
+            <Header className="header">
+              <div className="logo">AML 反洗钱规则管理</div>
+            </Header>
+            <Layout>
+              <Sider width={220} className="sider">
+                <Menu
+                  mode="inline"
+                  theme="dark"
+                  selectedKeys={[selectedMenuKey]}
+                  onClick={(info) => onMenuChange(info.key)}
+                  items={[
+                    {
+                      key: "rule-group",
+                      label: "规则管理",
+                      children: [
+                        {
+                          key: "rule-config",
+                          icon: <ProfileOutlined />,
+                          label: "规则配置"
+                        },
+                        {
+                          key: "rule-list",
+                          icon: <UnorderedListOutlined />,
+                          label: "已配置规则列表"
+                        }
+                      ]
+                    }
+                  ]}
+                />
+              </Sider>
+              <Layout className="main">
+                <Content className="content">{children}</Content>
+                <Footer className="footer">
+                  反洗钱监控规则配置平台 · 示例版本
+                </Footer>
+              </Layout>
+            </Layout>
+          </Layout>
+        );
+      }
+
+      // ------------ 规则配置页 ------------
+      function RuleConfigPage() {
+        const [form] = Form.useForm();
+        const {
+          rules,
+          draftRules,
+          editingRule,
+          setEditingRule,
+          generateRuleCode,
+          addDraft,
+          updateDraft,
+          deleteDraft,
+          addConfiguredRule,
+          updateConfiguredRule,
+          deleteConfiguredRule
+        } = useRuleContext();
+
+        const isEditing = !!editingRule;
+        const currentSource = editingRule?.source || "draft";
+
+        useEffect(() => {
+          if (editingRule && editingRule.data) {
+            const { ruleCode, ruleName, ruleDesc } = editingRule.data;
+            form.setFieldsValue({ ruleCode, ruleName, ruleDesc });
+          } else {
+            const autoCode = generateRuleCode();
+            form.setFieldsValue({
+              ruleCode: autoCode,
+              ruleName: "",
+              ruleDesc: ""
+            });
+          }
+        }, [editingRule, form, generateRuleCode]);
+
+        const [formValues, formErrors] =
+          Form.useWatch(
+            (values) => [values, form.getFieldsError()],
+            form
+          ) || [{}, []];
+
+        const hasErrors = useMemo(
+          () => formErrors.some((item) => item.errors && item.errors.length > 0),
+          [formErrors]
+        );
+
+        const isRequiredFilled = useMemo(() => {
+          const v = form.getFieldsValue();
+          return !!(v.ruleCode && v.ruleName);
+        }, [formValues]);
+
+        const saveDisabled = !isRequiredFilled || hasErrors;
+        const modifyDisabled = !isEditing || saveDisabled;
+        const deleteDisabled = !isEditing;
+
+        const handleNew = () => {
+          setEditingRule(null);
+          const autoCode = generateRuleCode();
+          form.resetFields();
+          form.setFieldsValue({
+            ruleCode: autoCode,
+            ruleName: "",
+            ruleDesc: ""
+          });
+        };
+
+        const validateUniqueRuleCode = (value) => {
+          if (!value) return true;
+          const all = [...rules, ...draftRules];
+          const currentId = editingRule?.data?.ruleId;
+          const exists = all.some(
+            (r) => r.ruleCode === value && r.ruleId !== currentId
+          );
+          return !exists;
+        };
+
+        const validateUniqueRuleName = (value) => {
+          if (!value) return true;
+          const all = [...rules, ...draftRules];
+          const currentId = editingRule?.data?.ruleId;
+          const exists = all.some(
+            (r) => r.ruleName === value && r.ruleId !== currentId
+          );
+          return !exists;
+        };
+
+        const handleSave = async () => {
+          try {
+            const values = await form.validateFields();
+            if (!validateUniqueRuleCode(values.ruleCode)) {
+              message.error("该规则编号已存在，请修改");
+              return;
+            }
+            if (!validateUniqueRuleName(values.ruleName)) {
+              message.error("该规则名称已存在，请修改");
+              return;
+            }
+            const draft = addDraft(values);
+            addConfiguredRule(values);
+            setEditingRule({
+              source: "draft",
+              data: draft
+            });
+            message.success("规则草稿保存成功");
+          } catch (e) {
+            // ignore
+          }
+        };
+
+        const handleModify = async () => {
+          if (!editingRule || !editingRule.data) return;
+          try {
+            const values = await form.validateFields();
+            if (!validateUniqueRuleCode(values.ruleCode)) {
+              message.error("该规则编号已存在，请修改");
+              return;
+            }
+            if (!validateUniqueRuleName(values.ruleName)) {
+              message.error("该规则名称已存在，请修改");
+              return;
+            }
+            const { ruleId } = editingRule.data;
+
+            if (currentSource === "draft") {
+              updateDraft(ruleId, values);
+              const target = rules.find(
+                (r) => r.ruleCode === editingRule.data.ruleCode
+              );
+              if (target) {
+                updateConfiguredRule(target.ruleId, values);
+              }
+            } else {
+              updateConfiguredRule(ruleId, values);
+              const draftTarget = draftRules.find(
+                (r) => r.ruleCode === editingRule.data.ruleCode
+              );
+              if (draftTarget) {
+                updateDraft(draftTarget.ruleId, values);
+              }
+            }
+
+            setEditingRule((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    data: {
+                      ...prev.data,
+                      ...values
+                    }
+                  }
+                : prev
+            );
+
+            message.success("规则已更新");
+          } catch (e) {
+            // ignore
+          }
+        };
+
+        const handleDelete = () => {
+          if (!editingRule || !editingRule.data) return;
+          Modal.confirm({
+            title: "确认删除当前规则草稿？",
+            content: "删除后将无法恢复，请确认是否继续。",
+            okText: "确认删除",
+            okButtonProps: { danger: true },
+            cancelText: "取消",
+            onOk: () => {
+              const { ruleId, ruleCode } = editingRule.data;
+              if (currentSource === "draft") {
+                deleteDraft(ruleId);
+              }
+              const target = rules.find((r) => r.ruleCode === ruleCode);
+              if (target) {
+                deleteConfiguredRule(target.ruleId);
+              }
+              setEditingRule(null);
+              const autoCode = generateRuleCode();
+              form.resetFields();
+              form.setFieldsValue({
+                ruleCode: autoCode,
+                ruleName: "",
+                ruleDesc: ""
+              });
+              message.success("规则草稿已删除");
+            }
+          });
+        };
+
+        const disabledCode = isEditing && currentSource === "configured";
+
+        return (
+          <div>
+            <h2 style={{ marginBottom: 24 }}>规则配置</h2>
+            <Form
+              form={form}
+              layout="vertical"
+              validateTrigger="onChange"
+              colon={false}
+            >
+              <Form.Item
+                label="规则编号"
+                name="ruleCode"
+                rules={[
+                  { required: true, message: "规则编号为必填项" },
+                  {
+                    pattern: /^[A-Za-z0-9_]+$/,
+                    message: "规则编号只能包含字母、数字和下划线"
+                  },
+                  { max: 30, message: "规则编号长度不能超过 30 位" }
+                ]}
+              >
+                <Input
+                  placeholder="例如：AML_RULE_20260302_001"
+                  disabled={disabledCode}
+                />
+              </Form.Item>
+
+              <Form.Item
+                label="规则名称"
+                name="ruleName"
+                rules={[
+                  { required: true, message: "规则名称为必填项" },
+                  { max: 50, message: "规则名称长度不能超过 50 位" }
+                ]}
+              >
+                <Input placeholder="请输入规则名称" />
+              </Form.Item>
+
+              <Form.Item
+                label="规则描述"
+                name="ruleDesc"
+                rules={[{ max: 200, message: "规则描述长度不能超过 200 位" }]}
+              >
+                <TextArea
+                  rows={4}
+                  placeholder="选填，用于描述该规则的监控逻辑与业务背景"
+                />
+              </Form.Item>
+
+              <Form.Item style={{ marginTop: 16 }}>
+                <Space size={16}>
+                  <Button onClick={handleNew}>新增</Button>
+
+                  <Tooltip
+                    title={saveDisabled ? "请填写必填字段并通过校验" : ""}
+                    placement="top"
+                  >
+                    <span>
+                      <Button
+                        type="primary"
+                        onClick={handleSave}
+                        disabled={saveDisabled || isEditing}
+                      >
+                        保存
+                      </Button>
+                    </span>
+                  </Tooltip>
+
+                  <Tooltip
+                    title={
+                      modifyDisabled
+                        ? "请先选择要修改的规则并通过校验"
+                        : ""
+                    }
+                    placement="top"
+                  >
+                    <span>
+                      <Button
+                        type="primary"
+                        onClick={handleModify}
+                        disabled={modifyDisabled}
+                      >
+                        修改
+                      </Button>
+                    </span>
+                  </Tooltip>
+
+                  <Tooltip
+                    title={deleteDisabled ? "请先选择要删除的规则" : ""}
+                    placement="top"
+                  >
+                    <span>
+                      <Button
+                        danger
+                        onClick={handleDelete}
+                        disabled={deleteDisabled}
+                      >
+                        删除
+                      </Button>
+                    </span>
+                  </Tooltip>
+                </Space>
+              </Form.Item>
+            </Form>
+          </div>
+        );
+      }
+
+      // ------------ 已配置规则列表页 ------------
+      function RuleListPage() {
+        const { rules, toggleRuleStatus, resetToMock, setEditingRule } =
+          useRuleContext();
+        const [searchValue, setSearchValue] = useState("");
+        const [pagination, setPagination] = useState({
+          current: 1,
+          pageSize: 10
+        });
+
+        const filteredData = useMemo(() => {
+          if (!searchValue) return rules;
+          const keyword = searchValue.trim().toLowerCase();
+          return rules.filter(
+            (r) =>
+              r.ruleName.toLowerCase().includes(keyword) ||
+              r.ruleCode.toLowerCase().includes(keyword)
+          );
+        }, [rules, searchValue]);
+
+        const handleTableChange = (pag) => {
+          setPagination({
+            current: pag.current,
+            pageSize: pag.pageSize
+          });
+        };
+
+        const handleRefresh = () => {
+          resetToMock();
+          setSearchValue("");
+          setPagination({
+            current: 1,
+            pageSize: 10
+          });
+          message.success("已刷新规则列表");
+        };
+
+        const handleToggleStatus = (record) => {
+          const isEnable = record.status === RULE_STATUS.ENABLE;
+          Modal.confirm({
+            title: `确认要${isEnable ? "禁用" : "启用"}该规则？`,
+            content: `规则编号：${record.ruleCode}，规则名称：${record.ruleName}`,
+            okText: isEnable ? "确认禁用" : "确认启用",
+            okButtonProps: isEnable ? { danger: true } : { type: "primary" },
+            cancelText: "取消",
+            onOk: () => {
+              toggleRuleStatus(record.ruleId);
+              message.success(`规则已${isEnable ? "禁用" : "启用"}`);
+            }
+          });
+        };
+
+        const handleEdit = (record) => {
+          setEditingRule({
+            source: "configured",
+            data: record
+          });
+          window.dispatchEvent(
+            new CustomEvent("switch-menu", { detail: "rule-config" })
+          );
+        };
+
+        const locale = {
+          emptyText: (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="暂无规则数据"
+            />
+          )
+        };
+
+        const columns = [
+          {
+            title: "序号",
+            dataIndex: "index",
+            width: 80,
+            align: "center",
+            render: (text, record, index) =>
+              (pagination.current - 1) * pagination.pageSize + index + 1
+          },
+          {
+            title: "规则编号",
+            dataIndex: "ruleCode",
+            width: 220
+          },
+          {
+            title: "规则名称",
+            dataIndex: "ruleName",
+            width: 260
+          },
+          {
+            title: "规则描述",
+            dataIndex: "ruleDesc",
+            ellipsis: true
+          },
+          {
+            title: "状态",
+            dataIndex: "status",
+            width: 120,
+            align: "center",
+            render: (status) =>
+              status === RULE_STATUS.ENABLE ? (
+                <Tag color="green">启用</Tag>
+              ) : (
+                <Tag color="red">禁用</Tag>
+              )
+          },
+          {
+            title: "操作",
+            key: "action",
+            width: 220,
+            align: "center",
+            render: (_, record) => {
+              const isEnable = record.status === RULE_STATUS.ENABLE;
+              return (
+                <Space>
+                  <Button onClick={() => handleEdit(record)}>编辑</Button>
+                  <Button
+                    type={isEnable ? "default" : "primary"}
+                    danger={isEnable}
+                    onClick={() => handleToggleStatus(record)}
+                  >
+                    {isEnable ? "禁用" : "启用"}
+                  </Button>
+                </Space>
+              );
+            }
+          }
+        ];
+
+        return (
+          <div>
+            <h2 style={{ marginBottom: 24 }}>已配置规则列表</h2>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 16,
+                gap: 16
+              }}
+            >
+              <Input
+                allowClear
+                placeholder="按规则名称 / 编号搜索"
+                prefix={<SearchOutlined />}
+                value={searchValue}
+                onChange={(e) => {
+                  setSearchValue(e.target.value);
+                  setPagination((prev) => ({ ...prev, current: 1 }));
+                }}
+                style={{ maxWidth: 320 }}
+              />
+              <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
+                刷新
+              </Button>
+            </div>
+
+            <Table
+              rowKey="ruleId"
+              columns={columns}
+              dataSource={filteredData}
+              pagination={{
+                current: pagination.current,
+                pageSize: pagination.pageSize,
+                total: filteredData.length,
+                showSizeChanger: true,
+                pageSizeOptions: ["10", "20", "50"],
+                showTotal: (total) => `共 ${total} 条`
+              }}
+              onChange={handleTableChange}
+              locale={locale}
+              scroll={{ y: 400 }}
+            />
+          </div>
+        );
+      }
+
+      // ------------ 顶层 App ------------
+      function App() {
+        const [selectedMenuKey, setSelectedMenuKey] = useState("rule-config");
+
+        useEffect(() => {
+          const handler = (e) => {
+            if (e.detail === "rule-config") {
+              setSelectedMenuKey("rule-config");
+            }
+          };
+          window.addEventListener("switch-menu", handler);
+          return () => window.removeEventListener("switch-menu", handler);
+        }, []);
+
+        const renderContent = () => {
+          if (selectedMenuKey === "rule-config") return <RuleConfigPage />;
+          if (selectedMenuKey === "rule-list") return <RuleListPage />;
+          return null;
+        };
+
+        return (
+          <ConfigProvider
+            theme={{
+              token: {
+                colorPrimary: "#1890ff",
+                colorSuccess: "#52c41a",
+                colorError: "#f5222d",
+                fontFamily: '"Microsoft YaHei", "Inter", sans-serif',
+                fontSize: 14
+              }
+            }}
+          >
+            <RuleProvider>
+              <MainLayout
+                selectedMenuKey={selectedMenuKey}
+                onMenuChange={setSelectedMenuKey}
+              >
+                {renderContent()}
+              </MainLayout>
+            </RuleProvider>
+          </ConfigProvider>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
